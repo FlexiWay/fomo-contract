@@ -1,0 +1,26 @@
+[features]
+seeds = false
+skip-lint = false
+resolution = false
+
+[programs.devnet]
+fomo_contract = "BXPuyjuKMVtYMdiHumY42cSF7vGWVX2sEyP1jSfBbwR2"
+
+[programs.localnet]
+mpl_core_anchor_wrapper = "EXMPLWxvGsyDuHMcnZHBnUN32RaoyVowkzhyXmAVxmEM"
+
+[[test.genesis]]
+address = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
+program = "tests/programs/mpl_core.so"
+
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Devnet"
+wallet = "/Users/dhruvraj/.config/solana/id.json"
+
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
