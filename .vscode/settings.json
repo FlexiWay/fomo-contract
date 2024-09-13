@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "/root/fomo-contract-wip/Cargo.toml"
+    ]
+}

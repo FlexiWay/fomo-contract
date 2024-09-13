@@ -1,3 +1,5 @@
+use anchor_lang::prelude::*;
+
 mod state;
 use state::*;
 mod utils;
@@ -5,27 +7,35 @@ use utils::*;
 mod instructions;
 use instructions::*;
 mod errors;
-use anchor_lang::prelude::*;
-use mpl_core::instructions::*;
 
-declare_id!("BXPuyjuKMVtYMdiHumY42cSF7vGWVX2sEyP1jSfBbwR2");
+declare_id!("HAsnCcr3E3Yq4uP9NqdPkRH8dSbPFPH6t8VJ16z6HfwQ");
 
 #[program]
 pub mod fomo_contract {
-
     use super::*;
 
     pub fn create_round(
         ctx: Context<CreateRoundContext>,
         seed: u64,
         name: String,
-        uri: String,
+        uri: String
     ) -> Result<()> {
         CreateRoundContext::create_round(ctx, seed, name, uri)?;
         Ok(())
     }
-    pub fn create_reserves(ctx: Context<CreateRoundReservesContext>) -> Result<()> {
-        CreateRoundReservesContext::create_reserves(ctx)?;
+
+    pub fn create_vaults(ctx: Context<CreateRoundVaultsContext>) -> Result<()> {
+        CreateRoundVaultsContext::create_vaults(ctx)?;
+        Ok(())
+    }
+
+    pub fn start_round(ctx: Context<StartRoundContext>) -> Result<()> {
+        StartRoundContext::start_round(ctx)?;
+        Ok(())
+    }
+
+    pub fn update_increment(ctx: Context<UpdateRoundContext>, increment_amount: u64) -> Result<()> {
+        UpdateRoundContext::update_increment(ctx, increment_amount)?;
         Ok(())
     }
 
@@ -33,8 +43,9 @@ pub mod fomo_contract {
         CreateKeyContext::create_key(ctx)?;
         Ok(())
     }
+
     pub fn burn_key(ctx: Context<BurnKeyContext>) -> Result<()> {
-        BurnKeyContext::burn(ctx)?;
+        BurnKeyContext::burn_key(ctx)?;
         Ok(())
     }
 
@@ -42,8 +53,10 @@ pub mod fomo_contract {
         WinnerClaimContext::winner_claim(ctx)?;
         Ok(())
     }
-    pub fn claim_round(ctx: Context<RoundClaimContext>) -> Result<()> {
-        RoundClaimContext::claim(ctx)?;
+
+    pub fn fee_claim(ctx: Context<FeeClaimContext>) -> Result<()> {
+        FeeClaimContext::fee_claim(ctx)?;
         Ok(())
     }
+
 }

@@ -1,14 +1,20 @@
-use anchor_lang::{prelude::Pubkey, Key};
+use anchor_lang::prelude::* ;
 use mpl_core::types::{
-    Creator, FreezeDelegate, Plugin, PluginAuthority, PluginAuthorityPair, Royalties,
-    VerifiedCreators, VerifiedCreatorsSignature,
+    Creator,
+    FreezeDelegate,
+    Plugin,
+    PluginAuthority,
+    PluginAuthorityPair,
+    Royalties,
+    VerifiedCreators,
+    VerifiedCreatorsSignature,
 };
 
-pub const TEAM_FEE_BASIS_POINTS: u64 = 420;
-pub const POOL_FEE_BASIS_POINTS: u64 = 690;
-pub const BURN_FEE_BASIS_POINTS: u64 = 990;
-pub const TREASURE_FEE_BASIS_POINTS: u64 = 7900;
-pub const SLOT_TO_CHANGE: u64 = 200000; // 200000
+pub const MAIN_FEE_BASIS_POINTS: u64 = 7000;
+pub const NFT_FEE_BASIS_POINTS: u64 = 2500;
+pub const MINT_FEE_BASIS_POINTS: u64 = 500;
+pub const SLOT_TO_CHANGE: u64 = 200_000; // 200000
+pub const INCREMENT_AMOUNT: u64 = 4_000_000; // 40000000
 
 pub struct Config {
     pub name: String,
@@ -20,24 +26,28 @@ impl Config {
     pub fn get_collection(round_account: Pubkey) -> Config {
         Config {
             name: String::from(""), // Not in use
-            uri: String::from(""),  // Not in use
-            plugins: Vec::from([PluginAuthorityPair {
-                plugin: Plugin::Royalties(Royalties {
-                    basis_points: 690,
-                    creators: Vec::from([Creator {
-                        address: round_account,
-                        percentage: 100,
-                    }]),
-                    rule_set: mpl_core::types::RuleSet::None,
-                }),
-                authority: Some(PluginAuthority::UpdateAuthority),
-            }]),
+            uri: String::from(""), // Not in use
+            plugins: Vec::from([
+                PluginAuthorityPair {
+                    plugin: Plugin::Royalties(Royalties {
+                        basis_points: 690,
+                        creators: Vec::from([
+                            Creator {
+                                address: round_account,
+                                percentage: 100,
+                            },
+                        ]),
+                        rule_set: mpl_core::types::RuleSet::None,
+                    }),
+                    authority: Some(PluginAuthority::UpdateAuthority),
+                },
+            ]),
         }
     }
     pub fn get_master(round_account: Pubkey) -> Config {
         Config {
             name: String::from("Master Key"),
-            uri: String::from("http://"),
+            uri: String::from("https://purple-quickest-catshark-409.mypinata.cloud/ipfs/QmTRVHyUKJuVbitMFBh2MBJgRMVjieN5AoefARpKpaenfa"),
             plugins: Vec::from([
                 PluginAuthorityPair {
                     plugin: Plugin::FreezeDelegate(FreezeDelegate { frozen: true }),
@@ -45,10 +55,12 @@ impl Config {
                 },
                 PluginAuthorityPair {
                     plugin: Plugin::VerifiedCreators(VerifiedCreators {
-                        signatures: Vec::from([VerifiedCreatorsSignature {
-                            verified: true,
-                            address: round_account,
-                        }]),
+                        signatures: Vec::from([
+                            VerifiedCreatorsSignature {
+                                verified: true,
+                                address: round_account,
+                            },
+                        ]),
                     }),
                     authority: Some(PluginAuthority::UpdateAuthority),
                 },
@@ -57,8 +69,8 @@ impl Config {
     }
     pub fn get_default(round_account: Pubkey) -> Config {
         Config {
-            name: String::from("Key"),
-            uri: String::from("http://"),
+            name: String::from("Collector Key"),
+            uri: String::from("https://purple-quickest-catshark-409.mypinata.cloud/ipfs/QmQuGTJT24e5xNqjTEvirmiqz7KBBhjrJozZadrDqZ7WeM"),
             plugins: Vec::from([
                 PluginAuthorityPair {
                     plugin: Plugin::FreezeDelegate(FreezeDelegate { frozen: false }),
@@ -66,10 +78,12 @@ impl Config {
                 },
                 PluginAuthorityPair {
                     plugin: Plugin::VerifiedCreators(VerifiedCreators {
-                        signatures: Vec::from([VerifiedCreatorsSignature {
-                            verified: true,
-                            address: round_account,
-                        }]),
+                        signatures: Vec::from([
+                            VerifiedCreatorsSignature {
+                                verified: true,
+                                address: round_account,
+                            },
+                        ]),
                     }),
                     authority: Some(PluginAuthority::UpdateAuthority),
                 },
@@ -77,3 +91,4 @@ impl Config {
         }
     }
 }
+

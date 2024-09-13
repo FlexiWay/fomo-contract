@@ -1,236 +1,285 @@
-use anchor_lang::{prelude::*, system_program};
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_lang::{ prelude::*, system_program };
+use anchor_spl::token::{ Token, TokenAccount };
 use mpl_core::{
-    instructions::{CreateV2Cpi, CreateV2InstructionArgs, UpdatePluginV1Cpi},
-    types::{DataState, FreezeDelegate},
+    instructions::{
+        CreateV2Cpi,
+        CreateV2InstructionArgs,
+        UpdateV2Cpi,
+        UpdateV2InstructionArgs,
+        UpdatePluginV1Cpi,
+        UpdatePluginV1InstructionArgs,
+    },
+    types::{ DataState, FreezeDelegate, Plugin },
 };
 
 use crate::{
-    errors::CustomErrors, state::*, Config, BURN_FEE_BASIS_POINTS, POOL_FEE_BASIS_POINTS,
-    SLOT_TO_CHANGE, TEAM_FEE_BASIS_POINTS, TREASURE_FEE_BASIS_POINTS,
+    errors::FomoErrors,
+    state::*,
+    Config,
+    MAIN_FEE_BASIS_POINTS,
+    NFT_FEE_BASIS_POINTS,
+    MINT_FEE_BASIS_POINTS,
+    SLOT_TO_CHANGE
 };
 
+/// Context structure for the `create_key` instruction.
 #[derive(Accounts)]
 pub struct CreateKeyContext<'info> {
+    /// The authority who initiates the transaction.
     #[account(mut)]
     pub authority: Signer<'info>,
 
-    #[account(mut,constraint = authority_ata.mint ==  token_mint.key(), constraint = authority_ata.owner == authority.key())]
-    pub authority_ata: Box<Account<'info, TokenAccount>>,
-    /// The address of the new asset.
+    /// Signer representing the new asset to be created.
     #[account(mut)]
     pub asset: Signer<'info>,
 
-    /// CHECK: checked
+    /// Existing asset account; should match the `nft_mint` of the current key account.
+    /// CHECK: Verified via the address constraint.
     #[account(mut, address = current_key_account.nft_mint)]
     pub current_asset: AccountInfo<'info>,
 
-    #[account(mut, seeds = [b"round", round_account.seed.to_le_bytes().as_ref()],bump = round_account.bump )]
+    /// Round account which tracks the minting round information.
+    #[account(mut, seeds = [b"round", round_account.seed.to_le_bytes().as_ref()], bump = round_account.bump)]
     pub round_account: Box<Account<'info, Round>>,
 
-    /// The collection to which the asset belongs.
-    /// CHECK: Checked in mpl-core.
+    /// Collection to which the asset belongs.
+    /// CHECK: Verified in mpl-core.
     #[account(mut, address = round_account.collection.key())]
     pub collection: AccountInfo<'info>,
 
-    #[account(init, payer = authority,space = 8 + NftKey::INIT_SPACE, seeds = [b"key",round_account.key().as_ref(),(round_account.mint_counter + 1).to_le_bytes().as_ref()],bump)]
+    /// The account representing the newly created key.
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + NftKey::INIT_SPACE,
+        seeds = [
+            b"key",
+            round_account.key().as_ref(),
+            (round_account.mint_counter + 1).to_le_bytes().as_ref(),
+        ],
+        bump
+    )]
     pub key_account: Box<Account<'info, NftKey>>,
 
-    #[account(mut, seeds = [b"key",round_account.key().as_ref(),round_account.mint_counter.to_le_bytes().as_ref()],bump = current_key_account.bump)]
+    /// The current key account for the asset.
+    #[account(mut, seeds = [b"key", round_account.key().as_ref(), round_account.mint_counter.to_le_bytes().as_ref()], bump = current_key_account.bump)]
     pub current_key_account: Box<Account<'info, NftKey>>,
 
+    /// Vaults for mintfee, nftpool, and mainpool, respectively.
+    #[account(mut, address = round_account.mint_fee_vault.key())]
+    pub mint_fee_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut, address = round_account.nft_pool_vault.key())]
+    pub nft_pool_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut, address = round_account.main_pool_vault.key())]
+    pub main_pool_vault: Box<Account<'info, TokenAccount>>,
+
     #[account(mut)]
-    pub token_mint: Box<Account<'info, Mint>>,
+    /// CHECK: Pool account (PDA)
+    pub pool: UncheckedAccount<'info>,
 
-    #[account(mut,
-        address = round_account.team_vault.key()
-    )]
-    pub team_vault: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    /// CHECK: Vault account for token a. token a of the pool will be deposit / withdraw from this vault account.
+    pub a_vault: UncheckedAccount<'info>,
 
-    #[account(mut,address = round_account.pool_vault.key() )]
-    pub pool_vault: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    /// CHECK: Vault account for token b. token b of the pool will be deposit / withdraw from this vault account.
+    pub b_vault: UncheckedAccount<'info>,
 
-    #[account(mut,
-           address = round_account.treasure_vault.key()
-    )]
-    pub treasure_vault: Box<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    /// CHECK: Token vault account of vault A
+    pub a_token_vault: UncheckedAccount<'info>,
+    #[account(mut)]
+    /// CHECK: Token vault account of vault B
+    pub b_token_vault: UncheckedAccount<'info>,
 
+    #[account(mut)]
+    /// CHECK: Lp token mint of vault a
+    pub a_vault_lp_mint: UncheckedAccount<'info>,
+    #[account(mut)]
+    /// CHECK: Lp token mint of vault b
+    pub b_vault_lp_mint: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    /// CHECK: LP token account of vault A. Used to receive/burn the vault LP upon deposit/withdraw from the vault.
+    pub a_vault_lp: UncheckedAccount<'info>,
+    #[account(mut)]
+    /// CHECK: LP token account of vault B. Used to receive/burn the vault LP upon deposit/withdraw from the vault.
+    pub b_vault_lp: UncheckedAccount<'info>,
+
+    #[account(mut)]
+    /// CHECK: Admin fee token account. Used to receive trading fee. It's mint field must matched with user_source_token mint field.
+    pub admin_token_fee: UncheckedAccount<'info>,
+
+    /// CHECK: Vault program. the pool will deposit/withdraw liquidity from the vault.
+    pub vault_program: UncheckedAccount<'info>,
+
+    /// Token program used for token transfers.
     pub token_program: Program<'info, Token>,
 
-    /// The SPL Noop program.
-    /// CHECK: Checked in mpl-core.
+    /// Optional log wrapper program for SPL Noop.
+    /// CHECK: Verified in mpl-core.
     pub log_wrapper: Option<AccountInfo<'info>>,
 
-    /// The MPL Core program.
-    /// CHECK: Checked in mpl-core.
+    /// MPL Core program for managing assets.
+    /// CHECK: Verified via the address constraint.
     #[account(address = mpl_core::ID)]
     pub mpl_core: AccountInfo<'info>,
 
+    #[account(address = dynamic_amm::ID)]
+    /// CHECK: Dynamic AMM program account
+    pub dynamic_amm_program: UncheckedAccount<'info>,
+
+    /// System program for standard Solana operations.
     #[account(address = system_program::ID)]
     pub system_program: Program<'info, System>,
 }
 
 impl CreateKeyContext<'_> {
+    /// Validation function to ensure the round has not ended.
     pub fn validate(&self) -> Result<()> {
-        let current_slot = Clock::get().unwrap().slot;
+        let current_slot = Clock::get()?.slot;
 
-        // check if round is over
-        require_gt!(
-            self.round_account.round_close_slot,
-            current_slot,
-            CustomErrors::RoundOver
-        );
+        // Ensure the round is still active by comparing current slot with the round close slot.
+        require_gt!(self.round_account.round_close_slot, current_slot, FomoErrors::RoundOver);
 
         Ok(())
     }
 
+    /// Instruction to create a new key.
     #[access_control(ctx.accounts.validate())]
     pub fn create_key(ctx: Context<CreateKeyContext>) -> Result<()> {
         let key_account = &mut ctx.accounts.key_account;
         let round_account = &mut ctx.accounts.round_account;
         let current_counter = round_account.mint_counter + 1;
-        let current_slot = Clock::get().unwrap().slot;
-        let current_key_account = &mut ctx.accounts.current_key_account;
+        let current_slot = Clock::get()?.slot;
 
+        let key_bump = *ctx.bumps.get("key_account").unwrap();
+
+        // Initialize the new key account.
         key_account.create(CreateKeyArgs {
             nft_mint: ctx.accounts.asset.key(),
-            bump: ctx.bumps.key_account,
+            bump: key_bump,
             key_index: current_counter,
         });
 
-        // assuming token as 6 decimal
-        let total_amount_for_index = 1000_000 * 10 * current_counter;
+        // Calculate the total amount of tokens to be used based on the key index.
+        let total_amount_for_index = 80_000_000 + round_account.round_increment * current_counter;
 
+        // Update the round account to reflect the new key.
         round_account.mint_counter = current_counter;
         round_account.round_close_slot = current_slot + SLOT_TO_CHANGE;
 
-        // Burn Transfer Ix
-        let transfer_instruction_burn = anchor_spl::token::Transfer {
-            from: ctx.accounts.authority_ata.to_account_info(),
-            to: ctx.accounts.team_vault.to_account_info(),
-            authority: ctx.accounts.authority.to_account_info(),
-        };
+        // Perform token transfers for various fees (Burn, Team, Pool, Treasure).
+        Self::process_fee_transfers(&ctx, total_amount_for_index)?;
 
-        let cpi_ctx_burn = CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            transfer_instruction_burn,
-        );
+        // Process asset creation and plugin update for the new key.
+        Self::process_asset_creation(&ctx)?;
 
-        anchor_spl::token::transfer(
-            cpi_ctx_burn,
-            total_amount_for_index
-                .checked_mul(BURN_FEE_BASIS_POINTS)
-                .unwrap()
-                .checked_div(10000)
-                .unwrap(),
-        )?;
+        Ok(())
+    }
 
-        // Team Transfer Ix
-        let transfer_instruction_team = anchor_spl::token::Transfer {
-            from: ctx.accounts.authority_ata.to_account_info(),
-            to: ctx.accounts.team_vault.to_account_info(),
-            authority: ctx.accounts.authority.to_account_info(),
-        };
+    /// Helper function to process fee-related token transfers.
+    fn process_fee_transfers(ctx: &Context<CreateKeyContext>, total_amount: u64) -> Result<()> {
+        let fee_bps = [
+            (MAIN_FEE_BASIS_POINTS, &ctx.accounts.main_pool_vault),
+            (NFT_FEE_BASIS_POINTS, &ctx.accounts.nft_pool_vault),
+            (MINT_FEE_BASIS_POINTS, &ctx.accounts.mint_fee_vault),
+        ];
 
-        let cpi_ctx_team = CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            transfer_instruction_team,
-        );
+        for (bps, vault) in fee_bps.iter() {
 
-        anchor_spl::token::transfer(
-            cpi_ctx_team,
-            total_amount_for_index
-                .checked_mul(TEAM_FEE_BASIS_POINTS)
-                .unwrap()
-                .checked_div(10000)
-                .unwrap(),
-        )?;
+            let amount = total_amount.checked_mul(*bps).unwrap().checked_div(10_000).unwrap();
 
-        // Pool Transfer Ix
-        let transfer_instruction_pool = anchor_spl::token::Transfer {
-            from: ctx.accounts.authority_ata.to_account_info(),
-            to: ctx.accounts.pool_vault.to_account_info(),
-            authority: ctx.accounts.authority.to_account_info(),
-        };
+            let accounts = dynamic_amm::cpi::accounts::Swap {
+                pool: ctx.accounts.pool.to_account_info(),
+                user_source_token: ctx.accounts.authority.to_account_info(),
+                user_destination_token: vault.to_account_info(),
+                a_vault: ctx.accounts.a_vault.to_account_info(),
+                b_vault: ctx.accounts.b_vault.to_account_info(),
+                a_token_vault: ctx.accounts.a_token_vault.to_account_info(),
+                b_token_vault: ctx.accounts.b_token_vault.to_account_info(),
+                a_vault_lp_mint: ctx.accounts.a_vault_lp_mint.to_account_info(),
+                b_vault_lp_mint: ctx.accounts.b_vault_lp_mint.to_account_info(),
+                a_vault_lp: ctx.accounts.a_vault_lp.to_account_info(),
+                b_vault_lp: ctx.accounts.b_vault_lp.to_account_info(),
+                admin_token_fee: ctx.accounts.admin_token_fee.to_account_info(),
+                user: ctx.accounts.authority.to_account_info(),
+                vault_program: ctx.accounts.vault_program.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+            };
 
-        let cpi_ctx_pool = CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            transfer_instruction_pool,
-        );
+            let cpi_context = CpiContext::new(
+                ctx.accounts.dynamic_amm_program.to_account_info(),
+                accounts
+            );
 
-        anchor_spl::token::transfer(
-            cpi_ctx_pool,
-            total_amount_for_index
-                .checked_mul(POOL_FEE_BASIS_POINTS)
-                .unwrap()
-                .checked_div(10000)
-                .unwrap(),
-        )?;
+            let _ = dynamic_amm::cpi::swap(cpi_context, amount, 0);
+        }
 
-        // Treasure Transfer Ix
-        let transfer_instruction_treasure = anchor_spl::token::Transfer {
-            from: ctx.accounts.authority_ata.to_account_info(),
-            to: ctx.accounts.treasure_vault.to_account_info(),
-            authority: ctx.accounts.authority.to_account_info(),
-        };
+        Ok(())
+    }
 
-        let cpi_ctx_treasure = CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            transfer_instruction_treasure,
-        );
+    /// Helper function to process asset creation and plugin update.
+    fn process_asset_creation(ctx: &Context<CreateKeyContext>) -> Result<()> {
+        let round_account = &ctx.accounts.round_account;
+        let seeds: &[&[&[u8]]] = &[
+            &[b"round", &round_account.seed.to_le_bytes(), &[round_account.bump]],
+        ];
 
-        anchor_spl::token::transfer(
-            cpi_ctx_treasure,
-            total_amount_for_index
-                .checked_mul(TREASURE_FEE_BASIS_POINTS)
-                .unwrap()
-                .checked_div(10000)
-                .unwrap(),
-        )?;
+        // Create a new asset.
+        let config_default = Config::get_default(round_account.key());
+        let config_master = Config::get_master(round_account.key());
 
-        let config = Config::get_master(round_account.key());
-        let seeds: &[&[&[u8]]] = &[&[
-            b"round",
-            &round_account.seed.to_le_bytes(),
-            &[round_account.bump],
-        ]];
-        CreateV2Cpi {
+        (CreateV2Cpi {
             asset: &ctx.accounts.asset.to_account_info(),
             collection: Some(ctx.accounts.collection.as_ref()),
-            authority: Some(ctx.accounts.authority.to_account_info().as_ref()),
+            authority: Some(round_account.to_account_info().as_ref()),
             payer: &ctx.accounts.authority.to_account_info(),
             owner: Some(ctx.accounts.authority.as_ref()),
-            update_authority: Some(round_account.to_account_info().as_ref()),
+            update_authority: None,
             system_program: &ctx.accounts.system_program.to_account_info(),
             log_wrapper: ctx.accounts.log_wrapper.as_ref(),
             __program: &ctx.accounts.mpl_core,
             __args: CreateV2InstructionArgs {
-                name: config.name,
-                uri: config.uri,
+                name: config_master.name,
+                uri: config_master.uri,
                 data_state: DataState::AccountState,
-                plugins: Some(config.plugins),
+                plugins: Some(config_master.plugins),
                 external_plugin_adapters: None,
             },
-        }
-        .invoke_signed(seeds)?;
+        }).invoke_signed(seeds)?;
 
-        UpdatePluginV1Cpi {
+        (UpdateV2Cpi {
             asset: &ctx.accounts.current_asset,
-            __program: &ctx.accounts.mpl_core,
+            collection: Some(ctx.accounts.collection.as_ref()),
+            authority: Some(round_account.to_account_info().as_ref()),
             payer: &ctx.accounts.authority.to_account_info(),
             system_program: &ctx.accounts.system_program.to_account_info(),
             log_wrapper: ctx.accounts.log_wrapper.as_ref(),
+            __program: &ctx.accounts.mpl_core,
+            __args: UpdateV2InstructionArgs {
+                new_name: Some(config_default.name),
+                new_uri: Some(config_default.uri),
+                new_update_authority: None,
+            },
+            new_collection: None,
+        }).invoke_signed(seeds)?;
+
+        // Update the plugin for the current asset.
+        (UpdatePluginV1Cpi {
+            asset: &ctx.accounts.current_asset,
             collection: Some(ctx.accounts.collection.as_ref()),
             authority: Some(round_account.to_account_info().as_ref()),
-            __args: {
-                mpl_core::instructions::UpdatePluginV1InstructionArgs {
-                    plugin: mpl_core::types::Plugin::FreezeDelegate(FreezeDelegate {
-                        frozen: false,
-                    }),
-                }
+            payer: &ctx.accounts.authority.to_account_info(),
+            system_program: &ctx.accounts.system_program.to_account_info(),
+            log_wrapper: ctx.accounts.log_wrapper.as_ref(),
+            __program: &ctx.accounts.mpl_core,
+            __args: UpdatePluginV1InstructionArgs {
+                plugin: Plugin::FreezeDelegate(FreezeDelegate { frozen: false }),
             },
-        }
-        .invoke_signed(seeds)?;
+        }).invoke_signed(seeds)?;
 
         Ok(())
     }
