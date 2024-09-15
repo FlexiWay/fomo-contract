@@ -1,5 +1,5 @@
 use anchor_lang::{ prelude::*, system_program };
-use anchor_spl::token::{ Token, TokenAccount };
+use anchor_spl::{ token::{ Mint, Token, TokenAccount }, associated_token::AssociatedToken };
 use mpl_core::{
     instructions::{
         CreateV2Cpi,
@@ -19,7 +19,7 @@ use crate::{
     MAIN_FEE_BASIS_POINTS,
     NFT_FEE_BASIS_POINTS,
     MINT_FEE_BASIS_POINTS,
-    SLOT_TO_CHANGE
+    SLOT_TO_CHANGE,
 };
 
 /// Context structure for the `create_key` instruction.
@@ -112,11 +112,27 @@ pub struct CreateKeyContext<'info> {
     /// CHECK: Admin fee token account. Used to receive trading fee. It's mint field must matched with user_source_token mint field.
     pub admin_token_fee: UncheckedAccount<'info>,
 
+    /// Authority's token account associated with the token mint.
+    /// If the account does not exist, it will be initialized.
+    #[account(
+        init_if_needed,
+        payer = authority,
+        associated_token::mint = wsol_mint,
+        associated_token::authority = authority
+    )]
+    pub user_source_token: Box<Account<'info, TokenAccount>>,
+
+    /// Mint of the tokens associated with the round.
+    pub wsol_mint: Box<Account<'info, Mint>>,
+
     /// CHECK: Vault program. the pool will deposit/withdraw liquidity from the vault.
     pub vault_program: UncheckedAccount<'info>,
 
     /// Token program used for token transfers.
     pub token_program: Program<'info, Token>,
+
+    /// Associated Token Program for creating associated token accounts.
+    pub associated_token_program: Program<'info, AssociatedToken>,
 
     /// Optional log wrapper program for SPL Noop.
     /// CHECK: Verified in mpl-core.
@@ -189,12 +205,11 @@ impl CreateKeyContext<'_> {
         ];
 
         for (bps, vault) in fee_bps.iter() {
-
             let amount = total_amount.checked_mul(*bps).unwrap().checked_div(10_000).unwrap();
 
             let accounts = dynamic_amm::cpi::accounts::Swap {
                 pool: ctx.accounts.pool.to_account_info(),
-                user_source_token: ctx.accounts.authority.to_account_info(),
+                user_source_token: ctx.accounts.user_source_token.to_account_info(),
                 user_destination_token: vault.to_account_info(),
                 a_vault: ctx.accounts.a_vault.to_account_info(),
                 b_vault: ctx.accounts.b_vault.to_account_info(),

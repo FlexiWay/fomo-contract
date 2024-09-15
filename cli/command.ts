@@ -88,7 +88,7 @@ function programCommand(name: string) {
     return program
         .command(name)
         .option('-e, --env <string>', 'Solana cluster env name', 'devnet') //mainnet-beta, testnet, devnet
-        .option('-r, --rpc <string>', 'Solana cluster RPC name', 'https://devnet.helius-rpc.com/?api-key=9d3cf223-274e-43d8-9a62-003782aab591')
+        .option('-r, --rpc <string>', 'Solana cluster RPC name', 'https://devnet.helius-rpc.com/?api-key=5194394c-d9ce-4baf-bdb8-be3ac9cc24e4')
         .option('-k, --keypair <string>', 'Solana wallet Keypair Path', '/root/fomo-contract-wip/keys/test.json')
 }
 

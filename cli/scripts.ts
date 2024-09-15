@@ -2,18 +2,18 @@ import { Program, web3 } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import fs from 'fs';
 import NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
-import { PROGRAM_ID } from '../lib/constant';
-import { Connection, Enum, Keypair, ComputeBudgetProgram, Transaction, PublicKey } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { FOMO_PROGRAM_ID, ROUND_SEED, MPL_CORE, TOKEN_MINT, SPL_NOOP_PROGRAM_ID, POOL_ADDRESS, DYNAMIC_VAULT_PROGRAM_ID, WSOL_MINT } from '../lib/constant';
+import { Connection, Enum, Keypair, ComputeBudgetProgram, Transaction, PublicKey, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
 import { IDL } from "../target/types/fomo_contract";
 import { BN } from "bn.js";
 import {
     getPDA,
     getAssociatedTokenAccount
 } from '../lib/util';
-import { ROUND_SEED, MPL_CORE, TOKEN_MINT, SPL_NOOP_PROGRAM_ID } from '../lib/constant';
 import { Round, Key } from '../lib/types';
-import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
+import AmmImpl, { PROGRAM_ID, DEVNET_POOL, StableSwap, getDepegAccounts } from '@mercurial-finance/dynamic-amm-sdk';
+import { getOrCreateATAInstruction } from '@mercurial-finance/dynamic-amm-sdk/dist/cjs/src/amm/utils';
 
 let solConnection: web3.Connection = null;
 let program: Program = null;
@@ -21,7 +21,7 @@ let provider: anchor.Provider = null;
 let payer: NodeWallet = null;
 
 // Address of the deployed program.
-let programId = new anchor.web3.PublicKey(PROGRAM_ID);
+let programId = new anchor.web3.PublicKey(FOMO_PROGRAM_ID);
 
 /**
  * Set cluster, provider, program
@@ -213,15 +213,14 @@ export const createKey = async () => {
         programId
     );
 
-    const tokenAccount = await getAssociatedTokenAccount(payer.publicKey, TOKEN_MINT);
+    const tokenAccount = await getAssociatedTokenAccount(payer.publicKey, new PublicKey("So11111111111111111111111111111111111111112"));
 
     console.log('tokenAccount--->>>>', tokenAccount.toBase58());
 
     const newMint = Keypair.generate();
 
     const roundState = await getRoundState(program);
-
-    // console.log('roundstate--->>>', roundState)
+    console.log('roundState---->>>>>', roundState);
 
     const [currentKeyAccount] = await getPDA(
         [Buffer.from("key"), roundAccount.toBuffer(), new BN(Number(roundState.mintCounter)).toArrayLike(Buffer, "le", 8)],
@@ -240,20 +239,24 @@ export const createKey = async () => {
     console.log('currentAssetMint--->>>>', currentAsset.nftMint.toBase58());
     console.log('currentAsset--->>>>', Number(currentAsset.keyIndex));
 
-    let createIx = new Transaction();
+    const pool: any = await AmmImpl.create(provider.connection, POOL_ADDRESS);
 
-    createIx.add(createAssociatedTokenAccountInstruction(
-        payer.publicKey, // payer
-        tokenAccount, // ata
-        payer.publicKey, // owner
-        TOKEN_MINT // mint
-    ));
+    const poolState = pool.poolState;
+
+    const remainingAccounts = pool.swapCurve.getRemainingAccounts();
+
+    remainingAccounts.push({
+        isSigner: false,
+        isWritable: true,
+        pubkey: roundState.mintFeeVault,
+    });
+
+    console.log('remainingAccounts---->>>>>', remainingAccounts);
 
     const tx = await program.methods
         .createKey()
         .accounts({
             authority: payer.publicKey,
-            authorityAta: tokenAccount,
             asset: newMint.publicKey,
             currentAsset: currentAsset.nftMint,
             roundAccount,
@@ -263,12 +266,26 @@ export const createKey = async () => {
             mintFeeVault: roundState.mintFeeVault,
             nftPoolVault: roundState.nftPoolVault,
             mainPoolVault: roundState.mainPoolVault,
+            pool: POOL_ADDRESS,
+            aVault: poolState.aVault,
+            bVault: poolState.bVault,
+            aTokenVault: pool.vaultA.tokenVaultPda,
+            bTokenVault: pool.vaultB.tokenVaultPda,
+            aVaultLpMint: pool.vaultA.vaultState.lpMint,
+            bVaultLpMint: pool.vaultB.vaultState.lpMint,
+            aVaultLp: poolState.aVaultLp,
+            bVaultLp: poolState.bVaultLp,
+            adminTokenFee: poolState.protocolTokenAFee,
+            userSourceToken: tokenAccount,
+            wsolMint: WSOL_MINT,
+            vaultProgram: DYNAMIC_VAULT_PROGRAM_ID,
             tokenProgram: TOKEN_PROGRAM_ID,
             logWrapper: SPL_NOOP_PROGRAM_ID,
             mplCore: MPL_CORE,
+            dynamicAmmProgram: PROGRAM_ID,
             systemProgram: anchor.web3.SystemProgram.programId
         })
-        // .preInstructions(createIx.instructions)
+        .remainingAccounts(remainingAccounts[0])
         .transaction();
 
     const txId = await provider.sendAndConfirm(tx, [newMint], {
@@ -396,7 +413,7 @@ export const winnerClaim = async () => {
         programId
     );
 
-   
+
     const roundState = await getRoundState(program);
     console.log('roundstate--->>>', roundState)
 
@@ -412,13 +429,12 @@ export const winnerClaim = async () => {
     let currentAsset = await program.account.nftKey.fetch(keyAccount, "confirmed") as unknown as Key;
     console.log('currentAssetMint--->>>>', currentAsset.nftMint.toBase58());
     console.log('currentAsset--->>>>', Number(currentAsset.keyIndex));
-    
 
     const tx = await program.methods
         .winnerClaim()
         .accounts({
             authority: payer.publicKey,
-            winner: Keypair.generate().publicKey, 
+            winner: Keypair.generate().publicKey,
             roundAccount,
             asset: currentAsset.nftMint,
             keyAccount,

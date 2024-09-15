@@ -13,7 +13,7 @@ use mpl_core::types::{
 pub const MAIN_FEE_BASIS_POINTS: u64 = 7000;
 pub const NFT_FEE_BASIS_POINTS: u64 = 2500;
 pub const MINT_FEE_BASIS_POINTS: u64 = 500;
-pub const SLOT_TO_CHANGE: u64 = 200_000; // 200000
+pub const SLOT_TO_CHANGE: u64 = 27_000; // 200000
 pub const INCREMENT_AMOUNT: u64 = 4_000_000; // 40000000
 
 pub struct Config {
