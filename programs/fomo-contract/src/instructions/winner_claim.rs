@@ -76,13 +76,15 @@ impl WinnerClaimContext<'_> {
             return Err(FomoErrors::InvalidKeyAccount.into());
         }
 
+        require_eq!(asset_data.owner, self.winner.key(), FomoErrors::InvalidOwner);
+
         Ok(())
     }
 
     /// Process the winner's claim, transferring assets and validating necessary conditions.
     #[access_control(ctx.accounts.validate())]
     pub fn winner_claim(ctx: Context<WinnerClaimContext>) -> Result<()> {
-        let round_account = &mut ctx.accounts.round_account;
+        let round_account: &mut Box<Account<'_, Round>> = &mut ctx.accounts.round_account;
 
         // Define signer seeds for authorization.
         let signer_seeds: &[&[&[u8]]] = &[

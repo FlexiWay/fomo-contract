@@ -12,8 +12,7 @@ import {
     getAssociatedTokenAccount
 } from '../lib/util';
 import { Round, Key } from '../lib/types';
-import AmmImpl, { PROGRAM_ID, DEVNET_POOL, StableSwap, getDepegAccounts } from '@mercurial-finance/dynamic-amm-sdk';
-import { getOrCreateATAInstruction } from '@mercurial-finance/dynamic-amm-sdk/dist/cjs/src/amm/utils';
+import AmmImpl, { PROGRAM_ID } from '@mercurial-finance/dynamic-amm-sdk';
 
 let solConnection: web3.Connection = null;
 let program: Program = null;
@@ -213,7 +212,7 @@ export const createKey = async () => {
         programId
     );
 
-    const tokenAccount = await getAssociatedTokenAccount(payer.publicKey, new PublicKey("So11111111111111111111111111111111111111112"));
+    const tokenAccount = await getAssociatedTokenAccount(payer.publicKey, WSOL_MINT);
 
     console.log('tokenAccount--->>>>', tokenAccount.toBase58());
 
@@ -245,14 +244,6 @@ export const createKey = async () => {
 
     const remainingAccounts = pool.swapCurve.getRemainingAccounts();
 
-    remainingAccounts.push({
-        isSigner: false,
-        isWritable: true,
-        pubkey: roundState.mintFeeVault,
-    });
-
-    console.log('remainingAccounts---->>>>>', remainingAccounts);
-
     const tx = await program.methods
         .createKey()
         .accounts({
@@ -275,7 +266,7 @@ export const createKey = async () => {
             bVaultLpMint: pool.vaultB.vaultState.lpMint,
             aVaultLp: poolState.aVaultLp,
             bVaultLp: poolState.bVaultLp,
-            adminTokenFee: poolState.protocolTokenAFee,
+            adminTokenFee: poolState.protocolTokenBFee,
             userSourceToken: tokenAccount,
             wsolMint: WSOL_MINT,
             vaultProgram: DYNAMIC_VAULT_PROGRAM_ID,
@@ -285,8 +276,10 @@ export const createKey = async () => {
             dynamicAmmProgram: PROGRAM_ID,
             systemProgram: anchor.web3.SystemProgram.programId
         })
-        .remainingAccounts(remainingAccounts[0])
+        .remainingAccounts(remainingAccounts)
         .transaction();
+
+    tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 2_000_000 }));
 
     const txId = await provider.sendAndConfirm(tx, [newMint], {
         commitment: "confirmed",
@@ -327,6 +320,7 @@ export const burnKey = async (index: number, address: PublicKey) => {
             asset: address,
             keyAccount,
             nftPoolVault: roundState.nftPoolVault,
+            tokenMint: TOKEN_MINT,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
             logWrapper: SPL_NOOP_PROGRAM_ID,
@@ -380,7 +374,6 @@ export const feeClaim = async () => {
 
     return txId;
 }
-
 
 export const updateRound = async (increment_amount: number) => {
 

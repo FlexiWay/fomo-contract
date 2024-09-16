@@ -47,7 +47,7 @@ impl Config {
     pub fn get_master(round_account: Pubkey) -> Config {
         Config {
             name: String::from("Master Key"),
-            uri: String::from("https://purple-quickest-catshark-409.mypinata.cloud/ipfs/QmTRVHyUKJuVbitMFBh2MBJgRMVjieN5AoefARpKpaenfa"),
+            uri: String::from("https://purple-quickest-catshark-409.mypinata.cloud/ipfs/QmXEFnXdMLeSCtzEk8gaiEcDq18DncZ8aRduSNmDgUa2kr"),
             plugins: Vec::from([
                 PluginAuthorityPair {
                     plugin: Plugin::FreezeDelegate(FreezeDelegate { frozen: true }),
@@ -70,7 +70,7 @@ impl Config {
     pub fn get_default(round_account: Pubkey) -> Config {
         Config {
             name: String::from("Collector Key"),
-            uri: String::from("https://purple-quickest-catshark-409.mypinata.cloud/ipfs/QmQuGTJT24e5xNqjTEvirmiqz7KBBhjrJozZadrDqZ7WeM"),
+            uri: String::from("https://purple-quickest-catshark-409.mypinata.cloud/ipfs/QmQmaHT4SzGnRZHEf7YBRB37DCWmQvRaPgbkQmPhfKrT4i"),
             plugins: Vec::from([
                 PluginAuthorityPair {
                     plugin: Plugin::FreezeDelegate(FreezeDelegate { frozen: false }),
