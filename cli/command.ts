@@ -88,8 +88,8 @@ function programCommand(name: string) {
     return program
         .command(name)
         .option('-e, --env <string>', 'Solana cluster env name', 'devnet') //mainnet-beta, testnet, devnet
-        .option('-r, --rpc <string>', 'Solana cluster RPC name', 'https://devnet.helius-rpc.com/?api-key=5194394c-d9ce-4baf-bdb8-be3ac9cc24e4')
-        // .option('-r, --rpc <string>', 'Solana cluster RPC name', 'https://api.mainnet-beta.solana.com')
+        // .option('-r, --rpc <string>', 'Solana cluster RPC name', 'https://devnet.helius-rpc.com/?api-key=886ba1fd-fa6a-424a-a9d9-dd282f9a0e96')
+        .option('-r, --rpc <string>', 'Solana cluster RPC name', 'https://elyn-7bym1r-fast-devnet.helius-rpc.com')
         .option('-k, --keypair <string>', 'Solana wallet Keypair Path', '/root/fomo-contract-wip/keys/test.json')
 }
 

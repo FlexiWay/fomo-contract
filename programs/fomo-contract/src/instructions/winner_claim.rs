@@ -62,10 +62,10 @@ pub struct WinnerClaimContext<'info> {
 impl WinnerClaimContext<'_> {
     /// Validate the conditions before processing the claim.
     pub fn validate(&self) -> Result<()> {
-        let current_slot = Clock::get().unwrap().slot;
+        let current_time = Clock::get().unwrap().slot;
 
         // Ensure that the round has ended before proceeding.
-        require_gt!(current_slot, self.round_account.round_close_slot, FomoErrors::RoundNotOver);
+        require_gt!(current_time, self.round_account.round_close_timestamp, FomoErrors::RoundNotOver);
 
         // Validate the asset's update authority to ensure it matches the expected collection.
         let asset_data = BaseAssetV1::from_bytes(&self.asset.data.borrow())?;

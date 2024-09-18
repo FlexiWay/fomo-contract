@@ -1,5 +1,7 @@
 use anchor_lang::{ prelude::*, system_program };
+use anchor_lang::solana_program::program::invoke;
 use anchor_spl::{ token::{ Mint, Token, TokenAccount }, associated_token::AssociatedToken };
+use spl_token::instruction as spl_instruction;
 use mpl_core::{
     instructions::{
         CreateV2Cpi,
@@ -11,7 +13,6 @@ use mpl_core::{
     },
     types::{ DataState, FreezeDelegate, Plugin },
 };
-
 use crate::{
     errors::FomoErrors,
     state::*,
@@ -19,7 +20,7 @@ use crate::{
     MAIN_FEE_BASIS_POINTS,
     NFT_FEE_BASIS_POINTS,
     MINT_FEE_BASIS_POINTS,
-    SLOT_TO_CHANGE,
+    TIME_TO_CHANGE,
 };
 
 /// Context structure for the `create_key` instruction.
@@ -155,10 +156,10 @@ pub struct CreateKeyContext<'info> {
 impl CreateKeyContext<'_> {
     /// Validation function to ensure the round has not ended.
     pub fn validate(&self) -> Result<()> {
-        let current_slot = Clock::get()?.slot;
+        let current_time = Clock::get()?.unix_timestamp as u64;
 
         // Ensure the round is still active by comparing current slot with the round close slot.
-        require_gt!(self.round_account.round_close_slot, current_slot, FomoErrors::RoundOver);
+        require_gt!(self.round_account.round_close_timestamp, current_time, FomoErrors::RoundOver);
 
         Ok(())
     }
@@ -169,7 +170,7 @@ impl CreateKeyContext<'_> {
         let key_account = &mut ctx.accounts.key_account;
         let round_account = &mut ctx.accounts.round_account;
         let current_counter = round_account.mint_counter + 1;
-        let current_slot = Clock::get()?.slot;
+        let current_timestamp = Clock::get()?.unix_timestamp as u64;
 
         let key_bump = *ctx.bumps.get("key_account").unwrap();
 
@@ -185,7 +186,31 @@ impl CreateKeyContext<'_> {
 
         // Update the round account to reflect the new key.
         round_account.mint_counter = current_counter;
-        round_account.round_close_slot = current_slot + SLOT_TO_CHANGE;
+        round_account.round_close_timestamp = current_timestamp + TIME_TO_CHANGE;
+        msg!("herere1");
+
+        // SOL trasfer to Wrap SOL account
+        let sol_ix = solana_program::system_instruction::transfer(
+            &ctx.accounts.authority.to_account_info().key,
+            &ctx.accounts.user_source_token.to_account_info().key,
+            total_amount_for_index
+        );
+
+        invoke(
+            &sol_ix,
+            &[
+                ctx.accounts.authority.to_account_info().clone(),
+                ctx.accounts.user_source_token.to_account_info().clone(),
+                ctx.accounts.system_program.to_account_info(),
+            ]
+        )?;
+
+        let wrap_ix = spl_instruction::sync_native(
+            &spl_token::id(),
+            &ctx.accounts.user_source_token.key()
+        )?;
+
+        invoke(&wrap_ix, &[ctx.accounts.user_source_token.to_account_info().clone()])?;
 
         // Perform token transfers for various fees (Burn, Team, Pool, Treasure).
         Self::process_fee_transfers(&ctx, total_amount_for_index)?;

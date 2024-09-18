@@ -2,7 +2,7 @@ use anchor_lang::{ prelude::*, system_program };
 use anchor_spl::token::{ Token, TokenAccount };
 use mpl_core::{ instructions::{ CreateV2Cpi, CreateV2InstructionArgs }, types::DataState };
 
-use crate::{ errors::FomoErrors, state::*, Config, SLOT_TO_CHANGE };
+use crate::{ errors::FomoErrors, state::*, Config, TIME_TO_CHANGE };
 
 /// Context structure for the `create_key` instruction.
 #[derive(Accounts)]
@@ -80,10 +80,10 @@ impl StartRoundContext<'_> {
         let round_account = &mut ctx.accounts.round_account;
 
         let current_counter = 1;
-        let current_slot = Clock::get()?.slot;
+        let current_time = Clock::get()?.unix_timestamp as u64;
 
         round_account.mint_counter = 1;
-        round_account.round_close_slot = current_slot + SLOT_TO_CHANGE;
+        round_account.round_close_timestamp = current_time + TIME_TO_CHANGE;
 
         let key_bump = *ctx.bumps.get("key_account").unwrap();
 

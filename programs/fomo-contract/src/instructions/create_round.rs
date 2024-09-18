@@ -1,7 +1,7 @@
 use anchor_lang::{ prelude::*, system_program };
 use anchor_spl::token::Token;
 use mpl_core::instructions::{ CreateCollectionV2Cpi, CreateCollectionV2InstructionArgs };
-use crate::{ state::*, Config, SLOT_TO_CHANGE, INCREMENT_AMOUNT };
+use crate::{ state::*, Config, TIME_TO_CHANGE, INCREMENT_AMOUNT };
 
 /// Accounts structure for the `create_round` instruction
 #[derive(Accounts)]
@@ -50,7 +50,7 @@ impl CreateRoundContext<'_> {
         // msg!("round_account: {}", round_account.key());
 
         // Get the current slot to calculate when the round will close
-        let current_slot: u64 = Clock::get()?.slot;
+        let current_time = Clock::get()?.unix_timestamp as u64;
 
         let round_bump: u8 = *ctx.bumps.get("round_account").unwrap();
 
@@ -67,7 +67,7 @@ impl CreateRoundContext<'_> {
             mint_fee_vault: Pubkey::default(),
             nft_pool_vault: Pubkey::default(),
             main_pool_vault: Pubkey::default(),
-            round_close_slot: current_slot + SLOT_TO_CHANGE,
+            round_close_timestamp: current_time + TIME_TO_CHANGE,
             round_increment: INCREMENT_AMOUNT,
             collection: ctx.accounts.collection.key(),
         });

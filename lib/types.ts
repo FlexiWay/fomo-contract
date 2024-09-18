@@ -4,8 +4,8 @@ import { PublicKey } from '@solana/web3.js'
 export interface Round {
     authority: PublicKey,
     mintCounter: number,
-    nftBurnVounter: number,
-    roundCloseSlot: number,
+    nftBurnCounter: number,
+    roundCloseTimestamp: number,
     roundBasicMintFee: number,
     roundIncrement: number,
     mainPoolVault: PublicKey,

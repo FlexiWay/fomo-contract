@@ -22,6 +22,7 @@ features = ["all"]
 [dependencies]
 anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
 anchor-spl = "0.28.0"
+solana-program = "1.16.25"
 spl-token="3.0.1"
 dynamic-amm = { git = "https://github.com/mercurial-finance/mercurial-dynamic-amm-sdk", features = [
     "cpi",

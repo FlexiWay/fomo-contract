@@ -8,7 +8,7 @@ mod instructions;
 use instructions::*;
 mod errors;
 
-declare_id!("B3uXsDUBZkzPcDdHSRYLsgxC93ofimnUnHaUJADvdR6j");
+declare_id!("3RYs4pJ6T1sKaVrxX8Fxfvje3QV13kuhTMcr444DJJEs");
 
 #[program]
 pub mod fomo_contract {

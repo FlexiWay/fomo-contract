@@ -6,7 +6,7 @@ resolution = false
 skip-lint = false
 
 [programs.devnet]
-fomo_contract = "B3uXsDUBZkzPcDdHSRYLsgxC93ofimnUnHaUJADvdR6j"
+fomo_contract = "3RYs4pJ6T1sKaVrxX8Fxfvje3QV13kuhTMcr444DJJEs"
 
 [registry]
 url = "https://api.apr.dev"

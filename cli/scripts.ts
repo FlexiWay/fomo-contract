@@ -2,9 +2,9 @@ import { Program, web3 } from '@project-serum/anchor';
 import * as anchor from '@project-serum/anchor';
 import fs from 'fs';
 import NodeWallet from '@project-serum/anchor/dist/cjs/nodewallet';
-import { FOMO_PROGRAM_ID, ROUND_SEED, MPL_CORE, TOKEN_MINT, SPL_NOOP_PROGRAM_ID, POOL_ADDRESS, DYNAMIC_VAULT_PROGRAM_ID, WSOL_MINT } from '../lib/constant';
+import { FOMO_PROGRAM_ID, ROUND_SEED, MPL_CORE, TOKEN_MINT, SPL_NOOP_PROGRAM_ID, POOL_ADDRESS, DYNAMIC_VAULT_PROGRAM_ID } from '../lib/constant';
 import { Connection, Enum, Keypair, ComputeBudgetProgram, Transaction, PublicKey, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, NATIVE_MINT } from '@solana/spl-token';
 import { IDL } from "../target/types/fomo_contract";
 import { BN } from "bn.js";
 import {
@@ -74,7 +74,6 @@ export const getRoundState = async (program: anchor.Program): Promise<Round | nu
     } catch (error) {
         return null
     }
-
 }
 
 export const createRound = async () => {
@@ -162,20 +161,15 @@ export const startRound = async () => {
         [Buffer.from("round"), new BN(ROUND_SEED).toArrayLike(Buffer, "le", 8)],
         programId
     );
-    console.log('roundAccount--->>>>', roundAccount.toBase58());
 
     const newMint = Keypair.generate();
 
     const roundState = await getRoundState(program);
 
-    console.log('roundstate--->>>>>', roundState);
-
     const [keyAccount] = await getPDA(
         [Buffer.from("key"), roundAccount.toBuffer(), new BN(Number(roundState.mintCounter) + 1).toArrayLike(Buffer, "le", 8)],
         programId
     );
-
-    console.log('keyAccount--->>>>', keyAccount);
 
     const tx = await program.methods
         .startRound()
@@ -212,7 +206,7 @@ export const createKey = async () => {
         programId
     );
 
-    const tokenAccount = await getAssociatedTokenAccount(payer.publicKey, WSOL_MINT);
+    const tokenAccount = await getAssociatedTokenAccount(payer.publicKey, NATIVE_MINT);
 
     console.log('tokenAccount--->>>>', tokenAccount.toBase58());
 
@@ -268,7 +262,7 @@ export const createKey = async () => {
             bVaultLp: poolState.bVaultLp,
             adminTokenFee: poolState.protocolTokenBFee,
             userSourceToken: tokenAccount,
-            wsolMint: WSOL_MINT,
+            wsolMint: NATIVE_MINT,
             vaultProgram: DYNAMIC_VAULT_PROGRAM_ID,
             tokenProgram: TOKEN_PROGRAM_ID,
             logWrapper: SPL_NOOP_PROGRAM_ID,

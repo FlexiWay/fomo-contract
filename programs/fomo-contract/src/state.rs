@@ -14,7 +14,7 @@ pub struct Round {
     /// Counter for the number of NFTs burned in this round.
     pub nft_burn_counter: u64,
     /// A slot indicating when the round will close (24-hour window).
-    pub round_close_slot: u64,
+    pub round_close_timestamp: u64,
     /// The base fee required to mint an NFT during this round.
     pub round_basic_mint_fee: u64,
     /// The increment value for fees or other progressive parameters.
@@ -47,7 +47,7 @@ pub struct RoundCreateArgs {
     /// Vault for the main pool associated with the round.
     pub main_pool_vault: Pubkey,
     /// The closing slot for the round (24-hour window).
-    pub round_close_slot: u64,
+    pub round_close_timestamp: u64,
     /// Increment value for progressive parameters (e.g., fees).
     pub round_increment: u64,
     /// Public key of the NFT collection associated with the round.
@@ -82,7 +82,7 @@ impl Round {
         self.mint_fee_vault = args.mint_fee_vault;
         self.nft_pool_vault = args.nft_pool_vault;
         self.main_pool_vault = args.main_pool_vault;
-        self.round_close_slot = args.round_close_slot;
+        self.round_close_timestamp = args.round_close_timestamp;
         self.round_increment = args.round_increment;
         self.mint_counter = 0; // Initialize mint counter to 0 for the new round
         self.nft_burn_counter = 0; // Initialize burn counter to 0 for the new round

@@ -49,10 +49,10 @@ impl FeeClaimContext<'_> {
     ///
     /// Ensures the round has ended by comparing the current slot with the round's close slot
     pub fn validate(&self) -> Result<()> {
-        let current_slot = Clock::get()?.slot;
+        let current_time = Clock::get()?.unix_timestamp as u64;
 
         // Check if the current blockchain slot is greater than the round's close slot
-        require_gt!(current_slot, self.round_account.round_close_slot, FomoErrors::RoundNotOver);
+        require_gt!(current_time, self.round_account.round_close_timestamp, FomoErrors::RoundNotOver);
         Ok(())
     }
 
