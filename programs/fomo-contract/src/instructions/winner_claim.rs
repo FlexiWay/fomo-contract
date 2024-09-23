@@ -45,7 +45,7 @@ pub struct WinnerClaimContext<'info> {
     pub token_mint: Box<Account<'info, Mint>>,
 
     /// Vault for tokens, owned by the `round_account`.
-    #[account(address = round_account.main_pool_vault.key())]
+    #[account(mut, address = round_account.main_pool_vault.key())]
     pub main_pool_vault: Box<Account<'info, TokenAccount>>,
 
     /// Token program used for token-related operations.
@@ -62,7 +62,7 @@ pub struct WinnerClaimContext<'info> {
 impl WinnerClaimContext<'_> {
     /// Validate the conditions before processing the claim.
     pub fn validate(&self) -> Result<()> {
-        let current_time = Clock::get().unwrap().slot;
+        let current_time = Clock::get()?.unix_timestamp as u64;
 
         // Ensure that the round has ended before proceeding.
         require_gt!(current_time, self.round_account.round_close_timestamp, FomoErrors::RoundNotOver);

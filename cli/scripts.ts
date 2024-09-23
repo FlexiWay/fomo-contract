@@ -393,18 +393,17 @@ export const updateRound = async (increment_amount: number) => {
     return txId;
 }
 
-export const winnerClaim = async () => {
+export const winnerClaim = async (address: PublicKey) => {
 
     const [roundAccount] = await getPDA(
         [Buffer.from("round"), new BN(ROUND_SEED).toArrayLike(Buffer, "le", 8)],
         programId
     );
 
-
     const roundState = await getRoundState(program);
     console.log('roundstate--->>>', roundState)
 
-    const tokenAccount = await getAssociatedTokenAccount(Keypair.generate().publicKey, TOKEN_MINT);
+    const tokenAccount = await getAssociatedTokenAccount(address, TOKEN_MINT);
 
     console.log('tokenAccount--->>>>', tokenAccount.toBase58());
 
@@ -421,11 +420,12 @@ export const winnerClaim = async () => {
         .winnerClaim()
         .accounts({
             authority: payer.publicKey,
-            winner: Keypair.generate().publicKey,
+            winner: address,
+            winnerAta: tokenAccount,
             roundAccount,
             asset: currentAsset.nftMint,
             keyAccount,
-            token_mint: TOKEN_MINT,
+            tokenMint: TOKEN_MINT,
             mainPoolVault: roundState.mainPoolVault,
             tokenProgram: TOKEN_PROGRAM_ID,
             associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
