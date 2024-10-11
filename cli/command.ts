@@ -3,7 +3,7 @@ import {
     PublicKey
 } from '@solana/web3.js';
 
-import { setClusterConfig, createRound, createVaults, createKey, burnKey, startRound, winnerClaim } from './scripts';
+import { setClusterConfig, createRound, createVaults, createKey, burnKey, startRound, winnerClaim, updateRound } from './scripts';
 
 program.version('0.0.1');
 
@@ -83,6 +83,23 @@ programCommand('burn-key')
         const txId = await burnKey(index, new PublicKey(address));
 
     });
+
+programCommand('update-round')
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    .option('-i, --increase <string>', 'publickey')
+    .action(async (directory, cmd) => {
+        const { env, keypair, rpc, increase } = cmd.opts();
+
+        console.log('Solana Cluster:', env);
+        console.log('Keypair Path:', keypair);
+        console.log('RPC URL:', rpc);
+
+        await setClusterConfig(env, keypair, rpc)
+
+        const txId = await updateRound(Number(increase));
+
+    });
+
 programCommand('winner-claim')
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .option('-a, --address <string>', 'publickey')

@@ -3,7 +3,7 @@ import {
     PublicKey,
 } from "@solana/web3.js";
 
-export const FOMO_PROGRAM_ID = new PublicKey("ERZ4tfcge8aTjfMYtb12avGEGh3jqppmCNciDK6M1Mru");
+export const FOMO_PROGRAM_ID = new PublicKey("Ehip3HunicTUeKR5fXfDMWMBtgQUnReLDp1YDb1NPxT5");
 
 export const MPL_CORE = new PublicKey("CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d");
 

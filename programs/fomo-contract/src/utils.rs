@@ -14,7 +14,7 @@ pub const MAIN_FEE_BASIS_POINTS: u64 = 7000;
 pub const NFT_FEE_BASIS_POINTS: u64 = 2500;
 pub const MINT_FEE_BASIS_POINTS: u64 = 500;
 pub const TIME_TO_CHANGE: u64 = 3 * 60 * 60; // 86400
-pub const INCREMENT_AMOUNT: u64 = 4_000_000; // 40000000
+pub const INCREMENT_AMOUNT: u64 = 500_000; // 40000000
 
 pub struct Config {
     pub name: String,

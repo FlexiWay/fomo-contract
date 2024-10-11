@@ -182,7 +182,7 @@ impl CreateKeyContext<'_> {
         });
 
         // Calculate the total amount of tokens to be used based on the key index.
-        let total_amount_for_index = 80_000_000 + round_account.round_increment * current_counter;
+        let total_amount_for_index = 10_000_000 + round_account.round_increment * current_counter;
 
         // Update the round account to reflect the new key.
         round_account.mint_counter = current_counter;

@@ -377,7 +377,7 @@ export const updateRound = async (increment_amount: number) => {
     );
 
     const tx = await program.methods
-        .updateRound(increment_amount)
+        .updateIncrement(new BN(increment_amount))
         .accounts({
             authority: payer.publicKey,
             roundAccount
